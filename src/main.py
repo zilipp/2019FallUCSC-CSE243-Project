@@ -87,10 +87,57 @@ def build_model():
     model = Model(inputs=inp, outputs=x)
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     logging.info(model.summary())
+    return model
 
 
-def train_model():
-    pass
+def train_model(model, train_X, train_y, val_X, val_y):
+    history = model.fit(train_X, train_y, batch_size=512, epochs=5, validation_data=(val_X, val_y))
+    # Plot training & validation accuracy values
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+
+    # Plot training & validation loss values
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+
+
+def val_model(model, val_X, val_y):
+    pred_noemb_val_y = model.predict([val_X], batch_size=1024, verbose=1)
+    print(pred_noemb_val_y)
+    threshes = []
+    f1_scores = []
+    accuracy_scores = []
+    for thresh in np.arange(0.1, 0.801, 0.01):
+        thresh = np.round(thresh, 2)
+        threshes.append(thresh)
+        logging.info("F1 score at threshold {0} is {1}".format(thresh, metrics.f1_score(val_y, (
+                    pred_noemb_val_y > thresh).astype(int))))
+        f1_scores.append(metrics.f1_score(val_y, (pred_noemb_val_y > thresh).astype(int)))
+        print("F1 score at threshold {0} is {1}".format(thresh, metrics.accuracy_score(val_y, (
+                    pred_noemb_val_y > thresh).astype(int))))
+        accuracy_scores.append(metrics.accuracy_score(val_y, (pred_noemb_val_y > thresh).astype(int)))
+    # plot two measures
+    plt.plot(threshes, f1_scores)
+    plt.title('f1_scores')
+    plt.ylabel('f1_scores')
+    plt.xlabel('threshold')
+    plt.show()
+
+    plt.plot(threshes, accuracy_scores)
+    plt.title('accuracy_score')
+    plt.ylabel('accuracy_score')
+    plt.xlabel('threshold')
+    plt.show()
 
 
 def main():
@@ -109,11 +156,20 @@ def main():
     train_df.groupby('target').count()
     train_df['target'].plot.hist(bins=2, title='Distribution of label in trainning set')
 
-    #build the model
+    # build the model
     build_model()
+    model = build_model()
 
-    # train the model
-    train_model()
+    # train the model and plot
+    train_model(model, train_X, train_y, val_X, val_y)
+
+    # validate the model
+    val_model(model, val_X, val_y)
+
+    # predict test
+    pred__test_y = model.predict([test_X], batch_size=1024, verbose=1)
+
+    logging.info('=========done===========')
 
 
 if __name__ == '__main__':
